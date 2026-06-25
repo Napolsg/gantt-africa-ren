@@ -1,0 +1,691 @@
+import { useState, useMemo, useRef, useCallback, useEffect } from "react";
+
+// ─── Africa REN Brand ──────────────────────────────────────────────────────
+const AR = {
+  green:      "#60B23B",
+  navy:       "#014368",
+  teal:       "#31B7BD",
+  lightGreen: "#E4F0DF",
+  white:      "#ffffff",
+};
+
+// ─── Default tasks ─────────────────────────────────────────────────────────
+const SOLAR_TASKS = [
+  { id: 0,   name: "Projet solaire",                      level: 0, dur: 645, preds: [], progress: 0 },
+  { id: 1,   name: "1 Local development",                 level: 1, dur: 580, preds: [], progress: 0 },
+  { id: 2,   name: "1.1 Offtake",                         level: 2, dur: 310, preds: [], progress: 0 },
+  { id: 3,   name: "1.1.1 Approval from authorities",     level: 3, dur: 50,  preds: [], progress: 0 },
+  { id: 4,   name: "1.1.1.1 Offer submission",            level: 4, dur: 0,   preds: [45], progress: 0 },
+  { id: 5,   name: "1.1.1.2 Review by authorities",       level: 4, dur: 30,  preds: [4], progress: 0 },
+  { id: 6,   name: "1.1.1.3 Comfort letter/MoU",         level: 4, dur: 10,  preds: [5], progress: 0 },
+  { id: 7,   name: "1.1.1.4 Approval Council of minister",level: 4, dur: 10,  preds: [6], progress: 0 },
+  { id: 8,   name: "1.1.2 PPA",                           level: 3, dur: 80,  preds: [], progress: 0 },
+  { id: 9,   name: "1.1.2.1 Drafting",                   level: 4, dur: 20,  preds: [3], progress: 0 },
+  { id: 10,  name: "1.1.2.2 Negociation",                level: 4, dur: 40,  preds: [9], progress: 0 },
+  { id: 11,  name: "1.1.2.3 Validation by all parties",  level: 4, dur: 20,  preds: [10], progress: 0 },
+  { id: 12,  name: "1.1.2.4 Signing",                    level: 4, dur: 0,   preds: [11], progress: 0 },
+  { id: 13,  name: "1.1.3 PPP",                          level: 3, dur: 80,  preds: [], progress: 0 },
+  { id: 14,  name: "1.1.3.1 Drafting",                   level: 4, dur: 20,  preds: [3], progress: 0 },
+  { id: 15,  name: "1.1.3.2 Negociation",                level: 4, dur: 40,  preds: [14], progress: 0 },
+  { id: 16,  name: "1.1.3.3 Validation by all parties",  level: 4, dur: 20,  preds: [15], progress: 0 },
+  { id: 17,  name: "1.1.3.4 Signing",                    level: 4, dur: 0,   preds: [16], progress: 0 },
+  { id: 18,  name: "1.1.4 Grid connection agreement",    level: 3, dur: 80,  preds: [], progress: 0 },
+  { id: 19,  name: "1.1.4.1 Drafting",                   level: 4, dur: 20,  preds: [8, 34], progress: 0 },
+  { id: 20,  name: "1.1.4.2 Negociation",                level: 4, dur: 40,  preds: [19], progress: 0 },
+  { id: 21,  name: "1.1.4.3 Validation by all parties",  level: 4, dur: 20,  preds: [20], progress: 0 },
+  { id: 22,  name: "1.1.4.4 Signing",                    level: 4, dur: 0,   preds: [21], progress: 0 },
+  { id: 23,  name: "1.2 ESG",                            level: 2, dur: 165, preds: [], progress: 0 },
+  { id: 24,  name: "1.2.1 ESIA",                         level: 3, dur: 105, preds: [], progress: 0 },
+  { id: 25,  name: "1.2.1.1 Advisor selection",          level: 4, dur: 15,  preds: [8, 13], progress: 0 },
+  { id: 26,  name: "1.2.1.2 Assessment",                 level: 4, dur: 60,  preds: [25], progress: 0 },
+  { id: 27,  name: "1.2.1.3 Draft report",               level: 4, dur: 0,   preds: [26], progress: 0 },
+  { id: 28,  name: "1.2.1.4 Review and comments",        level: 4, dur: 20,  preds: [27], progress: 0 },
+  { id: 29,  name: "1.2.1.5 Final report",               level: 4, dur: 10,  preds: [28], progress: 0 },
+  { id: 30,  name: "1.2.2 Land compensation",            level: 3, dur: 60,  preds: [], progress: 0 },
+  { id: 31,  name: "1.2.2.1 New task",                   level: 4, dur: 60,  preds: [24], progress: 0 },
+  { id: 32,  name: "1.3 Authorisations",                 level: 2, dur: 530, preds: [], progress: 0 },
+  { id: 33,  name: "1.3.1 Land lease",                   level: 3, dur: 100, preds: [], progress: 0 },
+  { id: 34,  name: "1.3.1.1 Land selection",             level: 4, dur: 0,   preds: [3], progress: 0 },
+  { id: 35,  name: "1.3.1.2 Approval from authorities",  level: 4, dur: 40,  preds: [34], progress: 0 },
+  { id: 36,  name: "1.3.1.3 Drafting",                   level: 4, dur: 20,  preds: [35], progress: 0 },
+  { id: 37,  name: "1.3.1.4 Negociation",                level: 4, dur: 40,  preds: [36], progress: 0 },
+  { id: 38,  name: "1.3.1.5 Signing",                    level: 4, dur: 0,   preds: [37], progress: 0 },
+  { id: 39,  name: "1.3.2 Permits and authorisations",   level: 3, dur: 150, preds: [], progress: 0 },
+  { id: 40,  name: "1.3.2.1 Building permits",           level: 4, dur: 20,  preds: [35], progress: 0 },
+  { id: 41,  name: "1.3.2.2 Production license",         level: 4, dur: 40,  preds: [8], progress: 0 },
+  { id: 42,  name: "1.3.3 Offshore accounts creation",   level: 3, dur: 40,  preds: [148], progress: 0 },
+  { id: 43,  name: "2 Technical development",            level: 1, dur: 300, preds: [], progress: 0 },
+  { id: 44,  name: "2.1 Power plant design",             level: 2, dur: 190, preds: [], progress: 0 },
+  { id: 45,  name: "2.1.1 Preliminary design",           level: 3, dur: 10,  preds: [], progress: 0 },
+  { id: 46,  name: "2.1.2 Grid integration study",       level: 3, dur: 50,  preds: [8, 13], progress: 0 },
+  { id: 47,  name: "2.1.3 Energy yield assessment",      level: 3, dur: 50,  preds: [8, 13], progress: 0 },
+  { id: 48,  name: "2.1.4 Topographic study",            level: 3, dur: 50,  preds: [8, 13, 35], progress: 0 },
+  { id: 49,  name: "2.1.5 Hydrological study",           level: 3, dur: 50,  preds: [8, 13, 35], progress: 0 },
+  { id: 50,  name: "2.1.6 Geophysical study",            level: 3, dur: 50,  preds: [8, 13, 35], progress: 0 },
+  { id: 51,  name: "2.2 Grid connection design",         level: 2, dur: 50,  preds: [], progress: 0 },
+  { id: 52,  name: "2.2.1 Grid connection study",        level: 3, dur: 50,  preds: [44, 35], progress: 0 },
+  { id: 53,  name: "2.3 Procurement",                    level: 2, dur: 160, preds: [], progress: 0 },
+  { id: 54,  name: "2.3.1 Selection of EPC & O&M",       level: 3, dur: 120, preds: [], progress: 0 },
+  { id: 55,  name: "2.3.1.1 Tender documents",           level: 4, dur: 10,  preds: [34, 8, 13], progress: 0 },
+  { id: 57,  name: "2.3.1.2.1 Consultation (1st round)", level: 4, dur: 30,  preds: [55], progress: 0 },
+  { id: 58,  name: "2.3.1.2.2 Selection preferred bidders", level: 4, dur: 20, preds: [57], progress: 0 },
+  { id: 60,  name: "2.3.1.3.1 Consultation (2nd round)", level: 4, dur: 35,  preds: [63], progress: 0 },
+  { id: 61,  name: "2.3.1.3.2 Selection of contractors", level: 4, dur: 5,   preds: [60], progress: 0 },
+  { id: 62,  name: "2.3.2 EPC and O&M contracts",        level: 3, dur: 100, preds: [], progress: 0 },
+  { id: 63,  name: "2.3.2.1 Drafting",                   level: 4, dur: 20,  preds: [58], progress: 0 },
+  { id: 64,  name: "2.3.2.2 Negociations",               level: 4, dur: 40,  preds: [63, 61], progress: 0 },
+  { id: 65,  name: "2.3.2.3 Signing",                    level: 4, dur: 0,   preds: [64], progress: 0 },
+  { id: 66,  name: "3 Financing",                        level: 1, dur: 385, preds: [], progress: 0 },
+  { id: 67,  name: "3.1 Lenders selection",              level: 2, dur: 40,  preds: [], progress: 0 },
+  { id: 69,  name: "3.1.1.1 Draft teaser",               level: 4, dur: 10,  preds: [24, 54], progress: 0 },
+  { id: 70,  name: "3.1.1.2 Sending project brief",      level: 4, dur: 0,   preds: [69], progress: 0 },
+  { id: 72,  name: "3.1.2.1 Lenders analysis",           level: 4, dur: 10,  preds: [67], progress: 0 },
+  { id: 80,  name: "3.2 Due diligence",                  level: 2, dur: 345, preds: [], progress: 0 },
+  { id: 83,  name: "3.2.1.1.1 RFP sending (Legal)",      level: 4, dur: 5,   preds: [67], progress: 0 },
+  { id: 84,  name: "3.2.1.1.2 Offers reception (Legal)", level: 4, dur: 15,  preds: [83], progress: 0 },
+  { id: 86,  name: "3.2.1.1.4 Mandate signing (Legal)",  level: 4, dur: 5,   preds: [84], progress: 0 },
+  { id: 88,  name: "3.2.1.2.1 Audit (Legal)",            level: 4, dur: 40,  preds: [86], progress: 0 },
+  { id: 90,  name: "3.2.1.2.3 Review (Legal)",           level: 4, dur: 20,  preds: [88], progress: 0 },
+  { id: 91,  name: "3.2.1.2.4 Amendments (Legal)",       level: 4, dur: 40,  preds: [90], progress: 0 },
+  { id: 92,  name: "3.2.1.2.5 Interim report (Legal)",   level: 4, dur: 5,   preds: [91], progress: 0 },
+  { id: 96,  name: "3.2.2.1.1 RFP sending (Technical)",  level: 4, dur: 5,   preds: [67], progress: 0 },
+  { id: 101, name: "3.2.2.2.1 Audit (Technical)",        level: 4, dur: 40,  preds: [96], progress: 0 },
+  { id: 105, name: "3.2.2.2.5 Interim report (Technical)",level: 4, dur: 5,  preds: [101], progress: 0 },
+  { id: 109, name: "3.2.3.1.1 RFP sending (ESG)",        level: 4, dur: 5,   preds: [67], progress: 0 },
+  { id: 114, name: "3.2.3.2.1 Audit (ESG)",              level: 4, dur: 40,  preds: [109], progress: 0 },
+  { id: 117, name: "3.2.3.2.4 Interim report (ESG)",     level: 4, dur: 5,   preds: [114], progress: 0 },
+  { id: 121, name: "3.2.4.1.1 RFP sending (Insurance)",  level: 4, dur: 5,   preds: [67], progress: 0 },
+  { id: 126, name: "3.2.4.2.1 Audit (Insurance)",        level: 4, dur: 40,  preds: [121], progress: 0 },
+  { id: 128, name: "3.2.4.2.3 Review (Insurance)",       level: 4, dur: 10,  preds: [126], progress: 0 },
+  { id: 132, name: "3.2.5.1.1 RFP sending (Model)",      level: 4, dur: 5,   preds: [67], progress: 0 },
+  { id: 137, name: "3.2.5.2.1 Audit (Model)",            level: 4, dur: 20,  preds: [132], progress: 0 },
+  { id: 139, name: "3.2.5.2.3 Review (Model)",           level: 4, dur: 10,  preds: [137], progress: 0 },
+  { id: 141, name: "3.3 Internal approvals",             level: 2, dur: 340, preds: [], progress: 0 },
+  { id: 143, name: "3.3.1.1 Drafting (Info Memo)",       level: 4, dur: 20,  preds: [67], progress: 0 },
+  { id: 144, name: "3.3.1.2 Review (Info Memo)",         level: 4, dur: 10,  preds: [143], progress: 0 },
+  { id: 145, name: "3.3.1.3 Circulation",                level: 4, dur: 0,   preds: [128, 139, 105, 92], progress: 0 },
+  { id: 146, name: "3.3.2 Lenders credit committee",     level: 3, dur: 10,  preds: [128, 139, 105, 92], progress: 0 },
+  { id: 147, name: "3.3.3 Africa REN board approval",    level: 3, dur: 10,  preds: [144], progress: 0 },
+  { id: 148, name: "3.4 Credit documentation",           level: 2, dur: 110, preds: [], progress: 0 },
+  { id: 149, name: "3.4.1 Drafting",                     level: 3, dur: 40,  preds: [146], progress: 0 },
+  { id: 150, name: "3.4.2 Review and comments",          level: 3, dur: 10,  preds: [149], progress: 0 },
+  { id: 151, name: "3.4.3 Negociation",                  level: 3, dur: 20,  preds: [150], progress: 0 },
+  { id: 152, name: "3.4.4 Second draft",                 level: 3, dur: 10,  preds: [151], progress: 0 },
+  { id: 153, name: "3.4.5 Review and comments",          level: 3, dur: 20,  preds: [152], progress: 0 },
+  { id: 154, name: "3.4.6 Finalisation",                 level: 3, dur: 10,  preds: [153], progress: 0 },
+  { id: 155, name: "3.4.7 Signing",                      level: 3, dur: 0,   preds: [154], progress: 0 },
+  { id: 167, name: "3.6 Closing",                        level: 2, dur: 95,  preds: [], progress: 0 },
+  { id: 168, name: "3.6.1 Conditions precedent fulfil.", level: 3, dur: 40,  preds: [148], progress: 0 },
+  { id: 169, name: "3.6.2 Documentation translation",   level: 3, dur: 20,  preds: [148], progress: 0 },
+  { id: 170, name: "3.6.3 Capital contribution",        level: 3, dur: 10,  preds: [168], progress: 0 },
+  { id: 171, name: "3.6.4 Insurances setup",             level: 3, dur: 15,  preds: [168], progress: 0 },
+  { id: 173, name: "3.6.5.1 Utilisation request",        level: 4, dur: 10,  preds: [168], progress: 0 },
+  { id: 174, name: "3.6.5.2 Transfer period",            level: 4, dur: 5,   preds: [173], progress: 0 },
+  { id: 175, name: "3.6.6 NTP",                          level: 3, dur: 0,   preds: [171], progress: 0 },
+];
+
+const BLANK_TASKS = [
+  { id: 1, name: "Phase 1", level: 1, dur: 100, preds: [], progress: 0 },
+  { id: 2, name: "1.1 Task A", level: 2, dur: 30, preds: [], progress: 0 },
+  { id: 3, name: "1.2 Task B", level: 2, dur: 40, preds: [2], progress: 0 },
+  { id: 4, name: "1.3 Task C", level: 2, dur: 30, preds: [3], progress: 0 },
+  { id: 5, name: "Phase 2", level: 1, dur: 80, preds: [], progress: 0 },
+  { id: 6, name: "2.1 Task D", level: 2, dur: 40, preds: [2], progress: 0 },
+  { id: 7, name: "2.2 Task E", level: 2, dur: 40, preds: [6], progress: 0 },
+];
+
+// ─── Storage ───────────────────────────────────────────────────────────────
+const SK = "gantt_ar_projects";
+const loadProjects = () => { try { const r = localStorage.getItem(SK); return r ? JSON.parse(r) : []; } catch { return []; } };
+const saveProjects = p => { try { localStorage.setItem(SK, JSON.stringify(p)); } catch {} };
+
+// ─── Scheduler ─────────────────────────────────────────────────────────────
+function schedule(tasks) {
+  const m = {};
+  tasks.forEach(t => (m[t.id] = { ...t, start: null, finish: null }));
+  let chg = true, it = 0;
+  while (chg && it++ < 150) {
+    chg = false;
+    tasks.forEach(t => {
+      const vp = t.preds.filter(p => m[p]);
+      const s = vp.length === 0 ? 0 : vp.every(p => m[p].finish !== null) ? Math.max(...vp.map(p => m[p].finish)) : null;
+      if (s !== null && m[t.id].start !== s) { m[t.id].start = s; m[t.id].finish = s + t.dur; chg = true; }
+    });
+  }
+  Object.values(m).forEach(t => { if (t.start === null) { t.start = 0; t.finish = t.dur; } });
+  const pe = Math.max(...Object.values(m).map(t => t.finish), 1);
+  Object.values(m).forEach(t => { t.lf = pe; t.ls = pe - t.dur; });
+  chg = true; it = 0;
+  while (chg && it++ < 150) {
+    chg = false;
+    [...tasks].reverse().forEach(t => {
+      const sc = tasks.filter(s => s.preds.includes(t.id));
+      if (sc.length) { const lf = Math.min(...sc.map(s => m[s.id].ls)); if (m[t.id].lf !== lf) { m[t.id].lf = lf; m[t.id].ls = lf - t.dur; chg = true; } }
+    });
+  }
+  Object.values(m).forEach(t => { t.slack = t.ls - t.start; t.critical = t.slack <= 0 && t.dur > 0; });
+  return Object.values(m);
+}
+
+function addWD(date, days) {
+  let d = new Date(date), n = 0, dir = days >= 0 ? 1 : -1, abs = Math.abs(Math.round(days));
+  while (n < abs) { d.setDate(d.getDate() + dir); if (d.getDay() !== 0 && d.getDay() !== 6) n++; }
+  return d;
+}
+const fmt = d => d.toLocaleDateString("fr-FR", { day: "2-digit", month: "short", year: "2-digit" });
+
+function getColor(t) {
+  const p = String(t.name).match(/^(\d+)/)?.[1];
+  return { "1": AR.green, "2": AR.navy, "3": AR.teal }[p] || AR.green;
+}
+function lighten(hex, a = 0.42) {
+  const n = parseInt(hex.replace("#", ""), 16);
+  return `rgb(${[16, 8, 0].map(s => Math.min(255, ((n >> s) & 255) + Math.round((255 - ((n >> s) & 255)) * a))).join(",")})`;
+}
+const pColor = p => p === 100 ? AR.green : p >= 50 ? AR.teal : p > 0 ? "#f59e0b" : "#d1d5db";
+
+// ─── EditCell ──────────────────────────────────────────────────────────────
+function EditCell({ value, onCommit, type = "text" }) {
+  const [ed, setEd] = useState(false);
+  const [val, setVal] = useState(String(value));
+  const ref = useRef();
+  const open = () => { setVal(String(value)); setEd(true); setTimeout(() => ref.current?.select(), 20); };
+  const commit = () => { setEd(false); if (String(value) !== val) onCommit(val); };
+  if (ed) return (
+    <input ref={ref} value={val} type={type === "number" ? "number" : "text"}
+      onChange={e => setVal(e.target.value)} onBlur={commit}
+      onKeyDown={e => { if (e.key === "Enter") commit(); if (e.key === "Escape") setEd(false); }}
+      style={{ width: "100%", border: "none", outline: `2px solid ${AR.teal}`, borderRadius: 4, padding: "1px 4px", fontSize: 11, background: "#e8f7f8", boxSizing: "border-box" }} />
+  );
+  return (
+    <div onClick={open} style={{ cursor: "text", width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: type === "number" ? "center" : "flex-start", padding: "0 4px", fontSize: 11, userSelect: "none", borderRadius: 4, color: AR.navy }}
+      onMouseEnter={e => e.currentTarget.style.background = AR.lightGreen}
+      onMouseLeave={e => e.currentTarget.style.background = "transparent"}>
+      {value}
+    </div>
+  );
+}
+
+// ─── ProgCell ──────────────────────────────────────────────────────────────
+function ProgCell({ value, onCommit }) {
+  const [ed, setEd] = useState(false);
+  const [val, setVal] = useState(value);
+  const commit = () => { setEd(false); if (value !== val) onCommit(val); };
+  return (
+    <div style={{ width: "100%", height: "100%", display: "flex", flexDirection: "column", justifyContent: "center", padding: "2px 4px", gap: 2, cursor: "pointer", boxSizing: "border-box" }}
+      onClick={() => !ed && setEd(true)}>
+      <div style={{ display: "flex", alignItems: "center", gap: 3 }}>
+        {ed
+          ? <><input type="number" min="0" max="100" value={val} autoFocus
+              onChange={e => setVal(Math.min(100, Math.max(0, +e.target.value)))}
+              onBlur={commit} onKeyDown={e => { if (e.key === "Enter") commit(); if (e.key === "Escape") setEd(false); }}
+              style={{ width: 40, border: "none", outline: `2px solid ${AR.teal}`, borderRadius: 4, padding: "1px 4px", fontSize: 11, background: "#e8f7f8" }} />
+              <span style={{ fontSize: 10, color: AR.teal }}>%</span></>
+          : <span style={{ fontSize: 11, fontWeight: 700, color: pColor(value), minWidth: 24 }}>{value}%</span>}
+      </div>
+      <div style={{ height: 4, background: "#d1d5db", borderRadius: 2, overflow: "hidden" }}>
+        <div style={{ height: "100%", width: `${val}%`, background: pColor(val), borderRadius: 2, transition: "width 0.2s" }} />
+      </div>
+    </div>
+  );
+}
+
+// ─── PredCell ──────────────────────────────────────────────────────────────
+function PredCell({ taskId, preds, allTasks, onCommit }) {
+  const [open, setOpen] = useState(false);
+  const [srch, setSrch] = useState("");
+  const [pos, setPos] = useState({ top: 0, left: 0 });
+  const anchor = useRef();
+
+  const calcPos = useCallback(() => {
+    if (!anchor.current) return;
+    const r = anchor.current.getBoundingClientRect();
+    setPos({
+      top: window.innerHeight - r.bottom >= 324 ? r.bottom + 2 : Math.max(4, r.top - 322),
+      left: Math.min(r.left, window.innerWidth - 298),
+    });
+  }, []);
+
+  useEffect(() => {
+    if (!open) return;
+    calcPos();
+    window.addEventListener("scroll", calcPos, true);
+    window.addEventListener("resize", calcPos);
+    return () => { window.removeEventListener("scroll", calcPos, true); window.removeEventListener("resize", calcPos); };
+  }, [open, calcPos]);
+
+  useEffect(() => {
+    if (!open) return;
+    const h = e => { if (!document.getElementById("pred-drop")?.contains(e.target) && !anchor.current?.contains(e.target)) setOpen(false); };
+    document.addEventListener("mousedown", h);
+    return () => document.removeEventListener("mousedown", h);
+  }, [open]);
+
+  const opts = allTasks.filter(t => t.id !== taskId && (srch === "" || String(t.id).includes(srch) || t.name.toLowerCase().includes(srch.toLowerCase())));
+  const toggle = id => onCommit(preds.includes(id) ? preds.filter(x => x !== id) : [...preds, id]);
+
+  return (
+    <div ref={anchor} style={{ position: "relative", width: "100%", height: "100%" }}>
+      <div onClick={() => { setOpen(v => !v); setSrch(""); }}
+        style={{ cursor: "pointer", width: "100%", height: "100%", display: "flex", alignItems: "center", flexWrap: "wrap", gap: 1, padding: "2px 4px", boxSizing: "border-box", borderRadius: 4 }}
+        onMouseEnter={e => e.currentTarget.style.background = AR.lightGreen}
+        onMouseLeave={e => e.currentTarget.style.background = "transparent"}>
+        {preds.length === 0
+          ? <span style={{ color: "#cbd5e1", fontSize: 11 }}>—</span>
+          : preds.map(id => <span key={id} style={{ background: "#d1fae5", color: AR.navy, borderRadius: 3, padding: "0 3px", fontSize: 9, marginRight: 2, whiteSpace: "nowrap" }}>#{id}</span>)}
+        <span style={{ marginLeft: "auto", color: AR.teal, fontSize: 9, flexShrink: 0 }}>▾</span>
+      </div>
+
+      {open && (
+        <div>
+          <div onClick={() => setOpen(false)} style={{ position: "fixed", inset: 0, zIndex: 9998, background: "rgba(1,67,104,0.4)", backdropFilter: "blur(2px)" }} />
+          <div id="pred-drop" style={{ position: "fixed", zIndex: 9999, top: pos.top, left: pos.left, background: AR.white, border: `1px solid ${AR.green}55`, borderRadius: 10, boxShadow: `0 8px 24px rgba(1,67,104,0.25)`, width: 290, maxHeight: 320, display: "flex", flexDirection: "column", overflow: "hidden" }}>
+            <div style={{ padding: "8px 8px 4px", borderBottom: `1px solid ${AR.lightGreen}` }}>
+              <input autoFocus value={srch} onChange={e => setSrch(e.target.value)} placeholder="🔍 Rechercher…"
+                style={{ width: "100%", padding: "5px 8px", border: `1px solid ${AR.green}55`, borderRadius: 6, fontSize: 11, outline: "none", boxSizing: "border-box" }} />
+            </div>
+            <div style={{ padding: "4px 10px", fontSize: 10, color: AR.teal, borderBottom: `1px solid ${AR.lightGreen}`, display: "flex", justifyContent: "space-between", fontWeight: 700 }}>
+              <span>{preds.length} sélectionné(s)</span>
+              {preds.length > 0 && <span onClick={() => onCommit([])} style={{ color: "#ef4444", cursor: "pointer" }}>✕ Tout effacer</span>}
+            </div>
+            <div style={{ overflowY: "auto", flex: 1 }}>
+              {opts.length === 0 && <div style={{ padding: "12px", fontSize: 11, color: "#94a3b8", textAlign: "center" }}>Aucun résultat</div>}
+              {opts.map(t => {
+                const sel = preds.includes(t.id);
+                const c = getColor(t);
+                return (
+                  <div key={t.id} onClick={() => toggle(t.id)}
+                    style={{ display: "flex", alignItems: "center", gap: 8, padding: "5px 10px", cursor: "pointer", background: sel ? AR.lightGreen : "transparent", borderBottom: `1px solid ${AR.lightGreen}` }}
+                    onMouseEnter={e => e.currentTarget.style.background = AR.lightGreen}
+                    onMouseLeave={e => e.currentTarget.style.background = sel ? AR.lightGreen : "transparent"}>
+                    <div style={{ width: 16, height: 16, borderRadius: 4, border: `2px solid ${sel ? c : "#cbd5e1"}`, background: sel ? c : AR.white, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                      {sel && <span style={{ color: AR.white, fontSize: 10, lineHeight: 1 }}>✓</span>}
+                    </div>
+                    <span style={{ fontSize: 10, color: AR.teal, fontWeight: 700, flexShrink: 0, width: 24 }}>#{t.id}</span>
+                    <span style={{ fontSize: 11, color: AR.navy, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={t.name}>{t.name}</span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── HomeScreen ────────────────────────────────────────────────────────────
+function HomeScreen({ onOpen }) {
+  const [projects, setProjects] = useState(loadProjects);
+  const [name, setName] = useState("");
+  const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
+  const [tpl, setTpl] = useState("solar");
+  const importRef = useRef();
+
+  const create = () => {
+    if (!name.trim()) return;
+    const p = { id: Date.now(), name: name.trim(), startDate: date, updatedAt: new Date().toISOString(), tasks: JSON.parse(JSON.stringify(tpl === "solar" ? SOLAR_TASKS : BLANK_TASKS)) };
+    const up = [p, ...projects]; setProjects(up); saveProjects(up); onOpen(p);
+  };
+
+  const del = (id, e) => {
+    e.stopPropagation();
+    if (!confirm("Supprimer ce projet ?")) return;
+    const up = projects.filter(p => p.id !== id); setProjects(up); saveProjects(up);
+  };
+
+  const imp = e => {
+    const f = e.target.files[0]; if (!f) return;
+    const r = new FileReader();
+    r.onload = ev => {
+      try {
+        const p = JSON.parse(ev.target.result);
+        if (!p.tasks || !p.name) return alert("Fichier invalide");
+        p.id = p.id || Date.now(); p.updatedAt = new Date().toISOString();
+        const up = projects.find(x => x.id === p.id) ? projects.map(x => x.id === p.id ? p : x) : [p, ...projects];
+        setProjects(up); saveProjects(up); onOpen(p);
+      } catch { alert("Erreur de lecture"); }
+    };
+    r.readAsText(f); e.target.value = "";
+  };
+
+  const avgProg = p => Math.round(p.tasks.reduce((s, t) => s + (t.progress || 0), 0) / Math.max(p.tasks.length, 1));
+
+  return (
+    <div style={{ fontFamily: "'Lato',sans-serif", minHeight: "100vh", background: `linear-gradient(160deg,${AR.navy} 0%,#012a42 60%,#011e30 100%)`, display: "flex", flexDirection: "column", alignItems: "center", padding: "40px 16px" }}>
+      {/* Logo */}
+      <div style={{ textAlign: "center", marginBottom: 36 }}>
+        <div style={{ fontSize: 48, fontWeight: 900, color: AR.green, fontFamily: "'Lato',sans-serif", letterSpacing: "0.04em", lineHeight: 1 }}>
+          Africa <span style={{ color: AR.white }}>REN</span>
+        </div>
+        <div style={{ color: AR.white, fontSize: 18, fontWeight: 900, letterSpacing: "0.1em", marginTop: 8 }}>GANTT MANAGER</div>
+        <div style={{ color: AR.teal, fontSize: 11, marginTop: 4, letterSpacing: "0.06em" }}>Développement d'infrastructures durables en Afrique</div>
+        <div style={{ color: `${AR.green}88`, fontSize: 10, marginTop: 6, letterSpacing: "0.08em" }}>v1.0.0</div>
+      </div>
+
+      <div style={{ display: "flex", gap: 24, width: "100%", maxWidth: 900, flexWrap: "wrap", justifyContent: "center" }}>
+        {/* New project panel */}
+        <div style={{ background: "rgba(255,255,255,0.05)", border: `1px solid ${AR.green}55`, borderRadius: 16, padding: 24, flex: "1", minWidth: 280, maxWidth: 360 }}>
+          <div style={{ color: AR.green, fontSize: 13, fontWeight: 900, marginBottom: 16, letterSpacing: "0.06em" }}>✨ NOUVEAU PROJET</div>
+
+          {[["NOM DU PROJET", <input value={name} onChange={e => setName(e.target.value)} placeholder="ex: Taa-Boon Solar" onKeyDown={e => e.key === "Enter" && create()} style={{ width: "100%", padding: "7px 10px", borderRadius: 7, border: `1px solid ${AR.green}66`, background: "rgba(255,255,255,0.08)", color: AR.white, fontSize: 13, outline: "none", boxSizing: "border-box" }} />],
+            ["DATE DE DÉBUT", <input type="date" value={date} onChange={e => setDate(e.target.value)} style={{ width: "100%", padding: "7px 10px", borderRadius: 7, border: `1px solid ${AR.green}66`, background: "rgba(255,255,255,0.08)", color: AR.white, fontSize: 13, outline: "none", boxSizing: "border-box" }} />],
+            ["TEMPLATE", <select value={tpl} onChange={e => setTpl(e.target.value)} style={{ width: "100%", padding: "7px 10px", borderRadius: 7, border: `1px solid ${AR.green}66`, background: "#012a42", color: AR.white, fontSize: 13, outline: "none", boxSizing: "border-box" }}>
+              <option value="solar">☀️ Projet solaire complet (Africa REN)</option>
+              <option value="blank">📋 Template vierge</option>
+            </select>]
+          ].map(([lbl, el]) => (
+            <div key={lbl} style={{ marginBottom: 12 }}>
+              <div style={{ fontSize: 10, color: AR.teal, fontWeight: 700, letterSpacing: "0.05em", marginBottom: 4 }}>{lbl}</div>
+              {el}
+            </div>
+          ))}
+
+          <button onClick={create} style={{ width: "100%", padding: "10px", borderRadius: 8, border: "none", background: AR.green, color: AR.white, fontSize: 13, fontWeight: 900, cursor: "pointer", letterSpacing: "0.05em", marginTop: 4 }}>
+            + CRÉER LE PROJET
+          </button>
+          <div style={{ marginTop: 10, textAlign: "center", fontSize: 11 }}>
+            <span style={{ color: "#64748b" }}>ou </span>
+            <span onClick={() => importRef.current.click()} style={{ color: AR.teal, cursor: "pointer", textDecoration: "underline" }}>importer un fichier JSON</span>
+            <input ref={importRef} type="file" accept=".json" onChange={imp} style={{ display: "none" }} />
+          </div>
+        </div>
+
+        {/* Project list */}
+        <div style={{ flex: 2, minWidth: 300 }}>
+          <div style={{ color: AR.white, fontSize: 13, fontWeight: 900, marginBottom: 14, letterSpacing: "0.06em" }}>📁 PROJETS RÉCENTS ({projects.length})</div>
+          {projects.length === 0 && (
+            <div style={{ color: "#475569", fontSize: 13, padding: 32, textAlign: "center", background: "rgba(255,255,255,0.03)", borderRadius: 12, border: `1px dashed ${AR.green}44` }}>
+              Aucun projet — créez-en un ci-contre
+            </div>
+          )}
+          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+            {projects.map(p => {
+              const prog = avgProg(p);
+              return (
+                <div key={p.id} onClick={() => onOpen(p)}
+                  style={{ background: "rgba(255,255,255,0.05)", border: `1px solid ${AR.green}33`, borderRadius: 12, padding: "14px 16px", cursor: "pointer", transition: "all 0.15s" }}
+                  onMouseEnter={e => { e.currentTarget.style.background = `rgba(96,178,59,0.12)`; e.currentTarget.style.borderColor = AR.green; }}
+                  onMouseLeave={e => { e.currentTarget.style.background = "rgba(255,255,255,0.05)"; e.currentTarget.style.borderColor = `${AR.green}33`; }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+                    <div>
+                      <div style={{ color: AR.white, fontWeight: 900, fontSize: 14 }}>{p.name}</div>
+                      <div style={{ color: AR.teal, fontSize: 11, marginTop: 2 }}>
+                        📅 {new Date(p.startDate).toLocaleDateString("fr-FR", { day: "2-digit", month: "short", year: "numeric" })}
+                        &nbsp;·&nbsp;{p.tasks.length} tâches
+                        &nbsp;·&nbsp;Modifié {new Date(p.updatedAt).toLocaleDateString("fr-FR", { day: "2-digit", month: "short" })}
+                      </div>
+                    </div>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                      <span style={{ fontSize: 12, fontWeight: 700, color: pColor(prog) }}>{prog}%</span>
+                      <button onClick={e => del(p.id, e)} style={{ background: "none", border: "none", cursor: "pointer", color: "#475569", fontSize: 14 }}>🗑</button>
+                    </div>
+                  </div>
+                  <div style={{ marginTop: 8, height: 4, background: "rgba(255,255,255,0.1)", borderRadius: 2, overflow: "hidden" }}>
+                    <div style={{ height: "100%", width: `${prog}%`, background: prog === 100 ? AR.green : prog >= 50 ? AR.teal : "#f59e0b", borderRadius: 2 }} />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── GanttView ─────────────────────────────────────────────────────────────
+const RH = 30, LW = 240, CD = 54, CP = 72, CPR = 100, CI = 36;
+const FW = CI + LW + CD + CP + CPR, HH = 48;
+
+function GanttView({ project, onBack, onSave }) {
+  const [tasks, setTasks] = useState(project.tasks);
+  const [zoom, setZoom] = useState(1.5);
+  const [filter, setFilter] = useState("all");
+  const [search, setSearch] = useState("");
+  const [crit, setCrit] = useState(false);
+  const [sd, setSd] = useState(project.startDate);
+  const [tip, setTip] = useState(null);
+  const [saved, setSaved] = useState(true);
+  const ref = useRef();
+
+  const proj = useMemo(() => new Date(sd + "T00:00:00"), [sd]);
+  const sched = useMemo(() => schedule(tasks), [tasks]);
+  const total = useMemo(() => Math.max(...sched.map(t => t.finish), 1), [sched]);
+  const allIds = useMemo(() => tasks.map(t => t.id), [tasks]);
+
+  const upd = useCallback((id, field, raw) => {
+    setSaved(false);
+    setTasks(prev => {
+      const t = prev.find(x => x.id === id); if (!t) return prev;
+      let val;
+      if (field === "dur") { val = parseInt(raw); if (isNaN(val) || val < 0) return prev; }
+      else if (field === "progress") { val = Math.min(100, Math.max(0, parseInt(raw) || 0)); }
+      else if (field === "preds") { val = Array.isArray(raw) ? raw : String(raw).split(/[;,\s]+/).filter(Boolean).map(Number).filter(x => !isNaN(x) && allIds.includes(x) && x !== id); }
+      return prev.map(x => x.id === id ? { ...x, [field]: val } : x);
+    });
+  }, [allIds]);
+
+  const doSave = () => { onSave({ ...project, tasks, startDate: sd, updatedAt: new Date().toISOString() }); setSaved(true); };
+
+  const filtered = useMemo(() => sched.filter(t => {
+    if (filter === "summary" && t.level > 2) return false;
+    if (filter === "detail" && t.level < 3) return false;
+    if (crit && !t.critical && t.dur > 0) return false;
+    if (search && !t.name.toLowerCase().includes(search.toLowerCase())) return false;
+    return true;
+  }), [sched, filter, search, crit]);
+
+  const ppd = zoom, tw = Math.ceil(total * ppd);
+
+  const ticks = useMemo(() => {
+    const a = []; let d = new Date(proj); d.setDate(1);
+    while (true) {
+      const diff = Math.round((d - proj) / 86400000);
+      if (diff > total + 31) break;
+      if (diff >= 0) a.push({ day: diff, label: d.toLocaleDateString("fr-FR", { month: "short", year: "2-digit" }) });
+      d.setMonth(d.getMonth() + 1);
+    }
+    return a;
+  }, [proj, total]);
+
+  const expCSV = () => {
+    const rows = [["N°", "Tâche", "Début (j)", "Date début", "Durée", "Date fin", "Avanc.%", "Prédéc.", "Slack", "Critique"]];
+    sched.forEach(t => rows.push([t.id, t.name, t.start, fmt(addWD(proj, t.start)), t.dur, t.dur > 0 ? fmt(addWD(proj, t.finish)) : "—", t.progress ?? 0, t.preds.join(";"), t.slack ?? 0, t.critical ? "Oui" : "Non"]));
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(new Blob(["\uFEFF" + rows.map(r => r.map(v => `"${v}"`).join(";")).join("\n")], { type: "text/csv;charset=utf-8;" }));
+    a.download = `${project.name}.csv`; a.click();
+  };
+
+  const expJSON = () => {
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(new Blob([JSON.stringify({ ...project, tasks, startDate: sd, updatedAt: new Date().toISOString() }, null, 2)], { type: "application/json" }));
+    a.download = `${project.name}.json`; a.click();
+  };
+
+  const th = { height: HH, background: AR.lightGreen, borderBottom: `1px solid ${AR.green}44`, display: "flex", alignItems: "flex-end", justifyContent: "center", paddingBottom: 5, fontWeight: 900, color: AR.navy, fontSize: 10, borderRight: `1px solid ${AR.green}33`, flexShrink: 0, userSelect: "none", letterSpacing: "0.04em" };
+
+  const btnBase = { padding: "3px 10px", borderRadius: 6, border: "none", cursor: "pointer", fontSize: 11, fontWeight: 700, letterSpacing: "0.03em" };
+
+  return (
+    <div style={{ fontFamily: "'Lato',sans-serif", fontSize: 12, background: AR.lightGreen, minHeight: "100vh", padding: 10 }}>
+      {/* Toolbar */}
+      <div style={{ marginBottom: 8, display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center", background: AR.navy, borderRadius: 10, padding: "8px 12px" }}>
+        <button onClick={onBack} style={{ ...btnBase, border: `1px solid ${AR.green}`, background: "transparent", color: AR.white }}>← Projets</button>
+        <span style={{ fontWeight: 900, fontSize: 14, color: AR.white, letterSpacing: "0.04em" }}>{project.name}</span>
+        {!saved && <span style={{ fontSize: 10, color: "#f59e0b", fontWeight: 700 }}>● Non sauvegardé</span>}
+        <input value={search} onChange={e => setSearch(e.target.value)} placeholder="🔍 Rechercher..."
+          style={{ padding: "3px 8px", borderRadius: 6, border: `1px solid ${AR.green}66`, background: "rgba(255,255,255,0.1)", color: AR.white, fontSize: 11, width: 130, outline: "none" }} />
+        {[["all", "TOUTES"], ["summary", "RÉSUMÉ"], ["detail", "DÉTAIL"]].map(([f, l]) => (
+          <button key={f} onClick={() => setFilter(f)} style={{ ...btnBase, background: filter === f ? AR.green : "rgba(255,255,255,0.1)", color: AR.white }}>{l}</button>
+        ))}
+        <button onClick={() => setCrit(v => !v)} style={{ ...btnBase, border: "2px solid #ef4444", background: crit ? "#ef4444" : "transparent", color: crit ? AR.white : "#ef4444" }}>🔴 CRITIQUE</button>
+        <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+          <span style={{ fontSize: 11, color: AR.teal }}>📅</span>
+          <input type="date" value={sd} onChange={e => { setSd(e.target.value); setSaved(false); }}
+            style={{ padding: "3px 6px", borderRadius: 6, border: `1px solid ${AR.green}66`, background: "rgba(255,255,255,0.1)", color: AR.white, fontSize: 11, outline: "none" }} />
+        </div>
+        <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+          <span style={{ fontSize: 10, color: AR.teal }}>Zoom:</span>
+          <input type="range" min="0.5" max="5" step="0.25" value={zoom} onChange={e => setZoom(+e.target.value)} style={{ width: 70 }} />
+          <span style={{ fontSize: 10, color: AR.teal, width: 28 }}>{zoom}x</span>
+        </div>
+        <div style={{ marginLeft: "auto", display: "flex", gap: 6 }}>
+          <button onClick={doSave} style={{ ...btnBase, background: saved ? "rgba(255,255,255,0.1)" : AR.green, color: AR.white }}>💾 {saved ? "Sauvegardé" : "Sauvegarder"}</button>
+          <button onClick={expJSON} style={{ ...btnBase, background: AR.teal, color: AR.white }}>⬇ JSON</button>
+          <button onClick={expCSV} style={{ ...btnBase, background: "rgba(255,255,255,0.15)", color: AR.white }}>⬇ CSV</button>
+        </div>
+      </div>
+
+      {/* Legend */}
+      <div style={{ display: "flex", gap: 10, marginBottom: 6, flexWrap: "wrap", alignItems: "center" }}>
+        {[["Phase 1", AR.green], ["Phase 2", AR.navy], ["Phase 3", AR.teal], ["Critique", "#ef4444"]].map(([l, c]) => (
+          <div key={l} style={{ display: "flex", alignItems: "center", gap: 3 }}>
+            <div style={{ width: 12, height: 10, borderRadius: 3, background: c }} />
+            <span style={{ fontSize: 10, color: AR.navy, fontWeight: 700 }}>{l}</span>
+          </div>
+        ))}
+        <span style={{ fontSize: 10, color: AR.teal, marginLeft: 4 }}>✏️ Cliquer sur une cellule pour modifier</span>
+      </div>
+
+      {/* Table + Chart */}
+      <div style={{ overflowX: "auto", overflowY: "auto", border: `1px solid ${AR.green}44`, borderRadius: 8, background: AR.white, maxHeight: "calc(100vh - 130px)" }}>
+        <div ref={ref} style={{ position: "relative" }}>
+          <div style={{ display: "flex", minWidth: FW + tw + 40 }}>
+            {/* Fixed columns */}
+            <div style={{ display: "flex", flexShrink: 0, borderRight: `2px solid ${AR.navy}`, zIndex: 20, background: AR.white, position: "sticky", left: 0, boxShadow: `4px 0 12px rgba(1,67,104,0.15)` }}>
+              {/* N° */}
+              <div style={{ width: CI, borderRight: `1px solid ${AR.lightGreen}`, flexShrink: 0 }}>
+                <div style={{ ...th, justifyContent: "center" }}>N°</div>
+                {filtered.map((t, i) => (
+                  <div key={t.id} style={{ height: RH, display: "flex", alignItems: "center", justifyContent: "center", borderBottom: `1px solid ${AR.lightGreen}`, background: i % 2 === 0 ? AR.white : AR.lightGreen }}>
+                    <span style={{ fontSize: 10, fontWeight: t.level <= 2 ? 700 : 400, color: t.critical && crit ? "#ef4444" : AR.teal }}>{t.id}</span>
+                  </div>
+                ))}
+              </div>
+              {/* Tâche */}
+              <div style={{ width: LW, borderRight: `1px solid ${AR.lightGreen}` }}>
+                <div style={{ ...th, justifyContent: "flex-start", paddingLeft: 8 }}>Tâche</div>
+                {filtered.map((t, i) => {
+                  const c = getColor(t), ind = t.level * 9, sum = t.level <= 2;
+                  return (
+                    <div key={t.id} style={{ height: RH, display: "flex", alignItems: "center", paddingLeft: 5 + ind, borderBottom: `1px solid ${AR.lightGreen}`, background: i % 2 === 0 ? AR.white : AR.lightGreen, fontWeight: sum ? 700 : 400, color: t.critical && crit ? "#ef4444" : (sum ? c : AR.navy) }}>
+                      <span style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", maxWidth: LW - ind - 10, fontSize: 11 }} title={t.name}>{t.name}</span>
+                    </div>
+                  );
+                })}
+              </div>
+              {/* Durée */}
+              <div style={{ width: CD, borderRight: `1px solid ${AR.lightGreen}` }}>
+                <div style={{ ...th }}>Durée<br /><span style={{ fontSize: 9, fontWeight: 400, color: AR.teal }}>jrs</span></div>
+                {filtered.map((t, i) => (
+                  <div key={t.id} style={{ height: RH, borderBottom: `1px solid ${AR.lightGreen}`, background: i % 2 === 0 ? AR.white : AR.lightGreen, display: "flex", alignItems: "center" }}>
+                    <EditCell value={t.dur} type="number" onCommit={v => upd(t.id, "dur", v)} />
+                  </div>
+                ))}
+              </div>
+              {/* Avancement */}
+              <div style={{ width: CP, borderRight: `1px solid ${AR.lightGreen}` }}>
+                <div style={{ ...th }}>Avanc.<br /><span style={{ fontSize: 9, fontWeight: 400, color: AR.teal }}>%</span></div>
+                {filtered.map((t, i) => (
+                  <div key={t.id} style={{ height: RH, borderBottom: `1px solid ${AR.lightGreen}`, background: i % 2 === 0 ? AR.white : AR.lightGreen }}>
+                    <ProgCell value={t.progress ?? 0} onCommit={v => upd(t.id, "progress", v)} />
+                  </div>
+                ))}
+              </div>
+              {/* Prédécesseurs */}
+              <div style={{ width: CPR }}>
+                <div style={{ ...th }}>Prédéc.</div>
+                {filtered.map((t, i) => (
+                  <div key={t.id} style={{ height: RH, borderBottom: `1px solid ${AR.lightGreen}`, background: i % 2 === 0 ? AR.white : AR.lightGreen, display: "flex", alignItems: "center" }}>
+                    <PredCell taskId={t.id} preds={t.preds} allTasks={tasks} onCommit={list => upd(t.id, "preds", list)} />
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Chart */}
+            <div style={{ flex: 1, position: "relative", minWidth: tw + 40 }}>
+              {/* Header ticks */}
+              <div style={{ height: HH, background: AR.lightGreen, borderBottom: `1px solid ${AR.green}44`, position: "relative" }}>
+                {ticks.map((tk, i) => (
+                  <div key={i} style={{ position: "absolute", left: tk.day * ppd, top: 0, height: "100%", borderLeft: `1px solid ${AR.green}55`, display: "flex", flexDirection: "column", justifyContent: "flex-end", paddingBottom: 4 }}>
+                    <span style={{ fontSize: 9, color: AR.navy, fontWeight: 700, paddingLeft: 3, whiteSpace: "nowrap" }}>{tk.label}</span>
+                  </div>
+                ))}
+              </div>
+
+              {/* Today line */}
+              {(() => {
+                const diff = Math.round((new Date() - proj) / 86400000);
+                if (diff >= 0 && diff <= total) return (
+                  <div style={{ position: "absolute", left: diff * ppd, top: HH, bottom: 0, width: 2, background: AR.teal, zIndex: 10, pointerEvents: "none" }}>
+                    <span style={{ position: "absolute", top: 2, left: 3, fontSize: 8, color: AR.teal, whiteSpace: "nowrap", fontWeight: 700 }}>Auj.</span>
+                  </div>
+                );
+              })()}
+
+              {/* Bars */}
+              {filtered.map((t, i) => {
+                const c = getColor(t), bc = t.critical ? "#ef4444" : c;
+                const bw = Math.max(t.dur * ppd, 4), lft = t.start * ppd;
+                const mil = t.dur === 0, sum = t.level <= 2, pr = t.progress ?? 0;
+                const ds = fmt(addWD(proj, t.start)), de = t.dur > 0 ? fmt(addWD(proj, t.finish)) : ds;
+                return (
+                  <div key={t.id} style={{ height: RH, position: "relative", borderBottom: `1px solid ${AR.lightGreen}`, background: i % 2 === 0 ? AR.white : AR.lightGreen }}>
+                    {ticks.map((tk, ti) => <div key={ti} style={{ position: "absolute", left: tk.day * ppd, top: 0, height: "100%", borderLeft: `1px solid ${AR.green}22` }} />)}
+                    {mil
+                      ? <div onMouseEnter={e => setTip({ x: e.clientX, y: e.clientY, t, ds, de })} onMouseLeave={() => setTip(null)}
+                          style={{ position: "absolute", left: lft - 7, top: RH / 2 - 7, width: 14, height: 14, background: bc, transform: "rotate(45deg)", borderRadius: 2, zIndex: 3 }} />
+                      : <div onMouseEnter={e => setTip({ x: e.clientX, y: e.clientY, t, ds, de })} onMouseLeave={() => setTip(null)}
+                          style={{ position: "absolute", left: lft, top: sum ? 7 : 8, width: bw, height: sum ? 14 : 12, background: sum ? bc : lighten(bc, 0.4), borderLeft: `3px solid ${bc}`, borderRadius: 3, zIndex: 3, overflow: "hidden", boxShadow: t.critical ? "0 0 0 1px #ef4444" : "none" }}>
+                          {pr > 0 && <div style={{ position: "absolute", left: 0, top: 0, height: "100%", width: `${pr}%`, background: "rgba(0,0,0,0.2)" }} />}
+                          {bw > 42 && <span style={{ position: "absolute", left: 3, top: 0, fontSize: 9, fontWeight: 700, color: sum ? AR.white : AR.navy, lineHeight: sum ? "14px" : "12px", whiteSpace: "nowrap", zIndex: 1 }}>{t.dur}j{pr > 0 ? ` · ${pr}%` : ""}</span>}
+                        </div>}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Footer stats */}
+      <div style={{ marginTop: 5, fontSize: 10, color: AR.navy, display: "flex", gap: 16, flexWrap: "wrap", fontWeight: 700 }}>
+        <span>{filtered.length} tâches · {total} jours ouvrés</span>
+        <span style={{ color: "#ef4444" }}>🔴 {sched.filter(t => t.critical).length} critiques</span>
+        <span style={{ color: AR.green }}>✅ {tasks.filter(t => t.progress === 100).length} terminées</span>
+        <span style={{ color: AR.teal }}>🔄 {tasks.filter(t => (t.progress ?? 0) > 0 && t.progress < 100).length} en cours</span>
+      </div>
+
+      {/* Tooltip */}
+      {tip && (
+        <div style={{ position: "fixed", left: tip.x + 12, top: tip.y - 10, background: AR.navy, color: AR.white, padding: "8px 12px", borderRadius: 8, fontSize: 11, zIndex: 99999, pointerEvents: "none", maxWidth: 260, boxShadow: `0 4px 16px rgba(1,67,104,0.4)`, lineHeight: 1.8, border: `1px solid ${AR.green}55` }}>
+          <div style={{ fontWeight: 900, marginBottom: 3, color: tip.t.critical ? "#fca5a5" : AR.teal }}>{tip.t.name}</div>
+          <div>📅 Début : <b>{tip.ds}</b></div>
+          {tip.t.dur > 0 && <div>🏁 Fin : <b>{tip.de}</b></div>}
+          <div>⏱ Durée : <b>{tip.t.dur}j</b></div>
+          <div>📊 Avancement : <b style={{ color: pColor(tip.t.progress ?? 0) }}>{tip.t.progress ?? 0}%</b></div>
+          {tip.t.preds.length > 0 && <div>🔗 Prédéc. : <b>{tip.t.preds.join(", ")}</b></div>}
+          <div>📐 Marge : <b style={{ color: tip.t.critical ? "#fca5a5" : AR.green }}>{tip.t.slack}j</b></div>
+          {tip.t.critical && <div style={{ color: "#fca5a5", fontWeight: 700 }}>⚠️ Chemin critique</div>}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── App root ──────────────────────────────────────────────────────────────
+export default function App() {
+  const [cur, setCur] = useState(null);
+
+  const save = proj => {
+    const all = loadProjects();
+    const up = all.find(p => p.id === proj.id) ? all.map(p => p.id === proj.id ? proj : p) : [proj, ...all];
+    saveProjects(up); setCur(proj);
+  };
+
+  return cur
+    ? <GanttView project={cur} onBack={() => setCur(null)} onSave={save} />
+    : <HomeScreen onOpen={setCur} />;
+}
