@@ -147,9 +147,125 @@
       { id: 7, name: "2.2 Task E", level: 2, dur: 40, preds: [6], progress: 0 },
     ];
 
-    const SK = "gantt_ar_projects";
-    const loadProjects = () => { try { const r = localStorage.getItem(SK); return r ? JSON.parse(r) : []; } catch { return []; } };
-    const saveProjects = p => { try { localStorage.setItem(SK, JSON.stringify(p)); } catch {} };
+    // ─── GitHub Storage ────────────────────────────────────────────────────
+    const CFG_KEY = "gantt_ar_config";
+    const getConfig = () => { try { return JSON.parse(localStorage.getItem(CFG_KEY)) || {}; } catch { return {}; } };
+    const saveConfig = c => { try { localStorage.setItem(CFG_KEY, JSON.stringify(c)); } catch {} };
+
+    async function ghFetch(token, repo, method, body) {
+      const [owner, repoName] = repo.split("/");
+      const url = `https://api.github.com/repos/${owner}/${repoName}/contents/projects.json`;
+      // Get current SHA if updating
+      let sha = null;
+      if (method === "PUT") {
+        try {
+          const r = await fetch(url, { headers: { Authorization: `token ${token}`, Accept: "application/vnd.github.v3+json" } });
+          if (r.ok) { const d = await r.json(); sha = d.sha; }
+        } catch {}
+      }
+      const opts = {
+        method,
+        headers: { Authorization: `token ${token}`, Accept: "application/vnd.github.v3+json", "Content-Type": "application/json" },
+      };
+      if (body !== undefined) {
+        opts.body = JSON.stringify({ message: "Update projects.json", content: btoa(unescape(encodeURIComponent(JSON.stringify(body, null, 2)))), ...(sha ? { sha } : {}) });
+      }
+      const res = await fetch(url, opts);
+      if (!res.ok) throw new Error(`GitHub API error: ${res.status}`);
+      if (method === "GET") {
+        const d = await res.json();
+        return JSON.parse(decodeURIComponent(escape(atob(d.content))));
+      }
+      return true;
+    }
+
+    async function loadProjects() {
+      const { token, repo } = getConfig();
+      if (!token || !repo) return [];
+      try { return await ghFetch(token, repo, "GET"); } catch { return []; }
+    }
+
+    async function saveProjects(projects) {
+      const { token, repo } = getConfig();
+      if (!token || !repo) return;
+      try { await ghFetch(token, repo, "PUT", projects); } catch(e) { console.error("Save error:", e); }
+    }
+
+    // ─── Setup Modal ───────────────────────────────────────────────────────
+    function SetupModal({ onDone }) {
+      const cfg = getConfig();
+      const [token, setToken] = useState(cfg.token || "");
+      const [repo, setRepo] = useState(cfg.repo || "napolsg/gantt-africa-ren");
+      const [testing, setTesting] = useState(false);
+      const [err, setErr] = useState("");
+
+      const test = async () => {
+        if (!token.trim() || !repo.trim()) return setErr("Token et repo requis");
+        setTesting(true); setErr("");
+        try {
+          await ghFetch(token.trim(), repo.trim(), "GET");
+          saveConfig({ token: token.trim(), repo: repo.trim() });
+          onDone();
+        } catch {
+          // File may not exist yet — try creating it
+          try {
+            await ghFetch(token.trim(), repo.trim(), "PUT", []);
+            saveConfig({ token: token.trim(), repo: repo.trim() });
+            onDone();
+          } catch(e2) {
+            setErr("Connexion échouée. Vérifiez le token et le repo.");
+          }
+        }
+        setTesting(false);
+      };
+
+      return (
+        <div style={{ fontFamily: "'Lato',sans-serif", minHeight: "100vh", background: `linear-gradient(160deg,${AR.navy} 0%,#012a42 60%,#011e30 100%)`, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
+          <div style={{ background: "rgba(255,255,255,0.06)", border: `1px solid ${AR.green}55`, borderRadius: 16, padding: 32, width: "100%", maxWidth: 420 }}>
+            <div style={{ textAlign: "center", marginBottom: 28 }}>
+              <div style={{ fontSize: 36, fontWeight: 900, color: AR.green, letterSpacing: "0.04em" }}>Africa <span style={{ color: AR.white }}>REN</span></div>
+              <div style={{ color: AR.white, fontSize: 16, fontWeight: 900, letterSpacing: "0.1em", marginTop: 6 }}>GANTT MANAGER</div>
+              <div style={{ color: AR.teal, fontSize: 11, marginTop: 4 }}>Configuration initiale</div>
+            </div>
+
+            <div style={{ marginBottom: 16 }}>
+              <div style={{ fontSize: 10, color: AR.teal, fontWeight: 700, letterSpacing: "0.05em", marginBottom: 4 }}>GITHUB PERSONAL ACCESS TOKEN</div>
+              <input
+                type="password" value={token} onChange={e => setToken(e.target.value)}
+                placeholder="ghp_xxxxxxxxxxxxxxxxxxxx"
+                style={{ width: "100%", padding: "8px 10px", borderRadius: 7, border: `1px solid ${AR.green}66`, background: "rgba(255,255,255,0.08)", color: AR.white, fontSize: 13, outline: "none", boxSizing: "border-box", fontFamily: "monospace" }}
+              />
+              <div style={{ fontSize: 10, color: "#64748b", marginTop: 4 }}>
+                GitHub → Settings → Developer settings → Personal access tokens → Fine-grained → Contents: Read & Write
+              </div>
+            </div>
+
+            <div style={{ marginBottom: 20 }}>
+              <div style={{ fontSize: 10, color: AR.teal, fontWeight: 700, letterSpacing: "0.05em", marginBottom: 4 }}>REPO GITHUB</div>
+              <input
+                value={repo} onChange={e => setRepo(e.target.value)}
+                placeholder="username/gantt-africa-ren"
+                style={{ width: "100%", padding: "8px 10px", borderRadius: 7, border: `1px solid ${AR.green}66`, background: "rgba(255,255,255,0.08)", color: AR.white, fontSize: 13, outline: "none", boxSizing: "border-box" }}
+              />
+            </div>
+
+            {err && <div style={{ color: "#fca5a5", fontSize: 11, marginBottom: 12, padding: "8px 10px", background: "rgba(239,68,68,0.1)", borderRadius: 6 }}>{err}</div>}
+
+            <button onClick={test} disabled={testing}
+              style={{ width: "100%", padding: "11px", borderRadius: 8, border: "none", background: testing ? "#475569" : AR.green, color: AR.white, fontSize: 13, fontWeight: 900, cursor: testing ? "default" : "pointer", letterSpacing: "0.05em" }}>
+              {testing ? "Connexion en cours..." : "🔗 CONNECTER ET DÉMARRER"}
+            </button>
+
+            <div style={{ marginTop: 12, textAlign: "center" }}>
+              <span onClick={() => { saveConfig({ token: "LOCAL", repo: "" }); onDone(); }}
+                style={{ fontSize: 11, color: "#64748b", cursor: "pointer", textDecoration: "underline" }}>
+                Utiliser en mode local (sans GitHub)
+              </span>
+            </div>
+          </div>
+        </div>
+      );
+    }
 
     function schedule(tasks) {
       const m = {};
@@ -321,35 +437,31 @@
       );
     }
 
-    function HomeScreen({ onOpen }) {
-      const [projects, setProjects] = useState(loadProjects);
+    function HomeScreen({ projects, onOpen, onSave, onDelete, onReset }) {
       const [name, setName] = useState("");
       const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
       const [tpl, setTpl] = useState("solar");
+      const [saving, setSaving] = useState(false);
       const importRef = useRef();
 
-      const create = () => {
+      const create = async () => {
         if (!name.trim()) return;
+        setSaving(true);
         const p = { id: Date.now(), name: name.trim(), startDate: date, updatedAt: new Date().toISOString(), tasks: JSON.parse(JSON.stringify(tpl === "solar" ? SOLAR_TASKS : BLANK_TASKS)) };
-        const up = [p, ...projects]; setProjects(up); saveProjects(up); onOpen(p);
-      };
-
-      const del = (id, e) => {
-        e.stopPropagation();
-        if (!confirm("Supprimer ce projet ?")) return;
-        const up = projects.filter(p => p.id !== id); setProjects(up); saveProjects(up);
+        await onSave(p);
+        onOpen(p);
+        setSaving(false);
       };
 
       const imp = e => {
         const f = e.target.files[0]; if (!f) return;
         const r = new FileReader();
-        r.onload = ev => {
+        r.onload = async ev => {
           try {
             const p = JSON.parse(ev.target.result);
             if (!p.tasks || !p.name) return alert("Fichier invalide");
             p.id = p.id || Date.now(); p.updatedAt = new Date().toISOString();
-            const up = projects.find(x => x.id === p.id) ? projects.map(x => x.id === p.id ? p : x) : [p, ...projects];
-            setProjects(up); saveProjects(up); onOpen(p);
+            await onSave(p); onOpen(p);
           } catch { alert("Erreur de lecture"); }
         };
         r.readAsText(f); e.target.value = "";
@@ -384,8 +496,8 @@
                   {el}
                 </div>
               ))}
-              <button onClick={create} style={{ width: "100%", padding: "10px", borderRadius: 8, border: "none", background: AR.green, color: AR.white, fontSize: 13, fontWeight: 900, cursor: "pointer", letterSpacing: "0.05em", marginTop: 4 }}>
-                + CRÉER LE PROJET
+              <button onClick={create} disabled={saving} style={{ width: "100%", padding: "10px", borderRadius: 8, border: "none", background: saving ? "#475569" : AR.green, color: AR.white, fontSize: 13, fontWeight: 900, cursor: saving ? "default" : "pointer", letterSpacing: "0.05em", marginTop: 4 }}>
+                {saving ? "Sauvegarde..." : "+ CRÉER LE PROJET"}
               </button>
               <div style={{ marginTop: 10, textAlign: "center", fontSize: 11 }}>
                 <span style={{ color: "#64748b" }}>ou </span>
@@ -395,7 +507,10 @@
             </div>
 
             <div style={{ flex: 2, minWidth: 300 }}>
-              <div style={{ color: AR.white, fontSize: 13, fontWeight: 900, marginBottom: 14, letterSpacing: "0.06em" }}>📁 PROJETS RÉCENTS ({projects.length})</div>
+              <div style={{ color: AR.white, fontSize: 13, fontWeight: 900, marginBottom: 14, letterSpacing: "0.06em", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <span>📁 PROJETS RÉCENTS ({projects.length})</span>
+              <span onClick={onReset} style={{ fontSize: 10, color: "#475569", cursor: "pointer", textDecoration: "underline" }}>⚙️ Reconfigurer GitHub</span>
+            </div>
               {projects.length === 0 && (
                 <div style={{ color: "#475569", fontSize: 13, padding: 32, textAlign: "center", background: "rgba(255,255,255,0.03)", borderRadius: 12, border: `1px dashed ${AR.green}44` }}>
                   Aucun projet — créez-en un ci-contre
@@ -420,7 +535,7 @@
                         </div>
                         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                           <span style={{ fontSize: 12, fontWeight: 700, color: pColor(prog) }}>{prog}%</span>
-                          <button onClick={e => del(p.id, e)} style={{ background: "none", border: "none", cursor: "pointer", color: "#475569", fontSize: 14 }}>🗑</button>
+                          <button onClick={e => { e.stopPropagation(); if(confirm("Supprimer ce projet ?")) onDelete(p.id); }} style={{ background: "none", border: "none", cursor: "pointer", color: "#475569", fontSize: 14 }}>🗑</button>
                         </div>
                       </div>
                       <div style={{ marginTop: 8, height: 4, background: "rgba(255,255,255,0.1)", borderRadius: 2, overflow: "hidden" }}>
